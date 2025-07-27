@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Massive Gallery</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    :root { --bg-color: #f9f9f9; --text-color: #000; }
+    body.dark { --bg-color: #121212; --text-color: #ffffff; }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .theme-toggle, #colorTheme, #langToggle {
+      position: fixed;
+      z-index: 1150;
+    }
+    .theme-toggle {
+      top: 80px; right: 20px; font-size: 28px;
+      background-color: var(--bg-color); color: var(--text-color);
+      border: 2px solid var(--text-color); border-radius: 50%; padding: 8px 12px;
+      cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); transition: all 0.3s ease;
+    }
+    #colorTheme { top: 20px; right: 20px; width: 120px; }
+    #langToggle { top: 20px; left: 20px; width: 120px; }
+    .gallery-title { font-size: 2rem; font-weight: 700; margin-bottom: 10px; color: var(--text-color); }
+    .gallery-subtitle { font-size: 1.25rem; font-weight: 500; color: var(--text-color); opacity: 0.7; }
+    .lightbox {
+      display: none; position: fixed; z-index: 1250; padding-top: 60px;
+      left: 0; top: 0; width: 100%; height: 100%;
+      overflow: auto; background-color: rgba(0, 0, 0, 0.9);
+    }
+    .lightbox-content {
+      margin: auto; display: block; max-width: 80%; max-height: 80%;
+      border-radius: 10px;
+    }
+    .close {
+      position: absolute; top: 30px; right: 30px;
+      color: white; font-size: 40px; font-weight: bold;
+      cursor: pointer;
+    }
+    .prev, .next {
+      cursor: pointer; position: absolute; top: 50%;
+      color: white; font-size: 50px; padding: 16px; margin-top: -50px;
+    }
+    .prev { left: 0; }
+    .next { right: 0; }
+  </style>
+</head>
+<body>
+<div class="theme-toggle" id="themeToggle" title="Toggle Theme">🌙</div>
+<select id="colorTheme" class="form-control">
+  <option value="default">Default</option>
+  <option value="blue">Ocean</option>
+  <option value="green">Forest</option>
+  <option value="red">Sunset</option>
+</select>
+<select id="langToggle" class="form-control">
+  <option value="en">English</option>
+  <option value="es">Español</option>
+  <option value="hi">हिंदी</option>
+  <option value="te">తెలుగు</option>
+</select>
+
+<div class="container mt-5">
+  <div class="text-center mb-3">
+    <h2 class="gallery-title">Massive Gallery</h2>
+    <p class="gallery-subtitle">Let's recall the memories</p>
+    <input type="text" id="searchInput" class="form-control w-50 mx-auto" placeholder="Search images by keyword...">
+    <div class="mt-3" id="categoryButtons"></div>
+  </div>
+  <div class="row" id="gallery"></div>
+</div>
+
+<div id="lightbox" class="lightbox">
+  <span class="close">&times;</span>
+  <img class="lightbox-content" id="lightbox-img">
+  <a class="prev">&#10094;</a>
+  <a class="next">&#10095;</a>
+  <a id="downloadBtn" download class="btn btn-success" style="position: absolute; bottom: 30px; right: 30px; z-index: 1100;">Download</a>
+  <div style="position: absolute; top: 30px; left: 30px; z-index: 1100;">
+    <button id="playBtn" class="btn btn-light">▶️</button>
+    <button id="pauseBtn" class="btn btn-light">⏸️</button>
+    <button id="zoomBtn" class="btn btn-light">🔍</button>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+const imageData = [
+  { id: 1018, category: "Nature" },
+  { id: 1020, category: "Nature" },
+  { id: 1022, category: "Nature" },
+  { id: 1023, category: "Nature" },
+  { id: 237, category: "Animals" },
+  { id: 433, category: "Animals" },
+  { id: 593, category: "Animals" },
+  { id: 1003, category: "Mountains" },
+  { src: "12.jpeg", category: "Mountains" },
+  { src: "13.jpeg", category: "Mountains" },
+  { src: "14.jpeg", category: "Mountains" },
+  { src: "15.jpeg", category: "Mountains" },
+  { src: "16.jpeg", category: "Mountains" },
+  { src: "17.jpeg", category: "Mountains" },
+  { src: "18.jpeg", category: "Mountains" },
+  { src: "19.jpeg", category: "Mountains" },
+
+  // New Vehicles
+  { src: "1.jpeg", category: "Vehicles" },
+  { src: "2.jpeg", category: "Vehicles" },
+  { src: "3.jpg", category: "Vehicles" },
+  { src: "4.jpeg", category: "Vehicles" },
+  { src: "5.jpeg", category: "Vehicles" },
+
+  { src: "21.jpeg", category: "Animals" },
+  { src: "22.jpeg", category: "Animals" },
+  { src: "23.jpeg", category: "Animals" },
+  { src: "24.jpeg", category: "Animals" },
+  { src: "25.jpeg", category: "Animals" },
+
+  { src: "51.jpeg", category: "Nature" },
+  { src: "52.jpeg", category: "Nature" },
+  { src: "53.jpeg", category: "Nature" },
+  { src: "54.jpeg", category: "Nature" },
+  { src: "55.jpeg", category: "Nature" },
+
+  { src: "61.jpeg", category: "Forest" },
+  { src: "62.jpeg", category: "Forest" },
+  { src: "63.jpeg", category: "Forest" },
+  { src: "64.jpeg", category: "Forest" },
+  { src: "65.jpeg", category: "Forest" },
+  { src: "66.jpeg", category: "Forest" },
+  { src: "67.jpeg", category: "Forest" },
+  { src: "68.jpeg", category: "Forest" },
+
+  { src: "91.jpeg", category: "Adventure" },
+  { src: "92.jpeg", category: "Adventure" },
+  { src: "93.jpeg", category: "Adventure" },
+  { src: "94.jpeg", category: "Adventure" },
+  { src: "95.jpeg", category: "Adventure" },
+  { src: "96.jpeg", category: "Adventure" },
+  { src: "97.jpeg", category: "Adventure" },
+  { src: "98.jpeg", category: "Adventure" },
+
+  { src: "31.jpeg", category: "Vehicles" },
+  { src: "32.jpeg", category: "Vehicles" },
+  { src: "33.jpeg", category: "Vehicles" },
+  { src: "34.jpeg", category: "Vehicles" },
+
+
+
+
+];
+
+const translations = {
+  en: {
+    title: "Massive Gallery", subtitle: "Let's recall the memories", search: "Search images by keyword...", download: "Download",
+    categories: ["All", "Nature", "Animals", "Mountains", "Adventure", "Forest", "Vehicles"]
+  },
+  es: {
+    title: "Galería Masiva", subtitle: "Revive los recuerdos", search: "Buscar imágenes por palabra clave...", download: "Descargar",
+    categories: ["Todo", "Naturaleza", "Animales", "Montañas", "Aventura", "Bosque", "Vehículos"]
+  },
+  hi: {
+    title: "विशाल गैलरी", subtitle: "यादों को फिर से जीएं", search: "कीवर्ड द्वारा छवियों को खोजें...", download: "डाउनलोड करें",
+    categories: ["सभी", "प्रकृति", "जानवर", "पहाड़", "साहसिक", "जंगल", "वाहन"]
+  },
+  te: {
+    title: "భారీ గ్యాలరీ", subtitle: "జ్ఞాపకాలను గుర్తు చేసుకుందాం", search: "కీవర్డ్ ద్వారా చిత్రాలను శోధించండి...", download: "డౌన్‌లోడ్ చేయండి",
+    categories: ["అన్నీ", "ప్రకృతి", "జంతువులు", "పర్వతాలు", "సాహసం", "అడవి", "వాహనాలు"]
+  }
+};
+
+let currentIndex = 0, zoomed = false, slideshowInterval;
+
+$(function () {
+  function buildGallery() {
+    $("#gallery").empty();
+    imageData.forEach(img => {
+      const src = img.id ? `https://picsum.photos/id/${img.id}/600/400` : img.src;
+      $("#gallery").append(`<div class='col-md-4 mb-4'><img src='${src}' class='img-fluid gallery-img' alt='${img.category}'></div>`);
+    });
+  }
+
+  function updateCategoryButtons(lang) {
+    const cats = translations[lang].categories;
+    const keys = ["All", "Nature", "Animals", "Mountains", "Adventure", "Forest", "Vehicles"];
+    $("#categoryButtons").empty();
+    cats.forEach((label, i) => {
+      const btn = `<button class="btn btn-outline-secondary filter-btn" data-filter="${keys[i]}">${label}</button>`;
+      $("#categoryButtons").append(btn);
+    });
+  }
+
+  function setLanguage(lang) {
+    const t = translations[lang];
+    $(".gallery-title").text(t.title);
+    $(".gallery-subtitle").text(t.subtitle);
+    $("#searchInput").attr("placeholder", t.search);
+    $("#downloadBtn").text(t.download);
+    updateCategoryButtons(lang);
+  }
+
+  function toggleUI(hide) {
+    const display = hide ? 'none' : 'block';
+    $('#langToggle, #colorTheme, #themeToggle').css('display', display);
+  }
+
+  function updateLightboxImage() {
+    const img = $(".gallery-img").eq(currentIndex).attr("src");
+    $("#lightbox-img").attr("src", img);
+
+    fetch(img)
+      .then(res => res.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        $("#downloadBtn")
+          .attr("href", blobUrl)
+          .attr("download", `image_${currentIndex + 1}.jpg`);
+      })
+      .catch(err => {
+        console.error("Download failed:", err);
+        $("#downloadBtn").removeAttr("href").removeAttr("download");
+      });
+  }
+
+  $(document).on("click", ".gallery-img", function () {
+    currentIndex = $(".gallery-img").index(this);
+    updateLightboxImage();
+    $("#lightbox").fadeIn();
+    toggleUI(true);
+  });
+
+  $(".close, #lightbox").click(function (e) {
+    if (e.target === e.currentTarget || $(this).hasClass("close")) {
+      $("#lightbox").fadeOut();
+      toggleUI(false);
+    }
+  });
+
+  $(".next").click(() => { currentIndex = (currentIndex + 1) % $(".gallery-img").length; updateLightboxImage(); });
+  $(".prev").click(() => { currentIndex = (currentIndex - 1 + $(".gallery-img").length) % $(".gallery-img").length; updateLightboxImage(); });
+
+  $("#playBtn").click(() => {
+    slideshowInterval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % $(".gallery-img").length;
+      updateLightboxImage();
+    }, 2000);
+  });
+
+  $("#pauseBtn").click(() => clearInterval(slideshowInterval));
+
+  $("#zoomBtn").click(() => {
+    zoomed = !zoomed;
+    $("#lightbox-img").css({ transform: zoomed ? "scale(1.5)" : "scale(1)", transition: "transform 0.3s ease" });
+  });
+
+  $("#searchInput").on("input", function () {
+    const val = $(this).val().toLowerCase();
+    $(".gallery-img").each(function () {
+      $(this).closest("div").toggle($(this).attr("alt").toLowerCase().includes(val));
+    });
+  });
+
+  $(document).on("click", ".filter-btn", function () {
+    const filter = $(this).data("filter");
+    $(".gallery-img").each(function () {
+      $(this).parent().toggle(filter === "All" || $(this).attr("alt") === filter);
+    });
+  });
+
+  $("#langToggle").change(function () {
+    setLanguage(this.value);
+  });
+
+  const themes = {
+    default: { bg: "#f9f9f9", text: "#000" },
+    blue: { bg: "#e0f7fa", text: "#01579b" },
+    green: { bg: "#e8f5e9", text: "#1b5e20" },
+    red: { bg: "#ffebee", text: "#b71c1c" }
+  };
+
+  $("#colorTheme").change(function () {
+    const t = themes[$(this).val()];
+    document.documentElement.style.setProperty("--bg-color", t.bg);
+    document.documentElement.style.setProperty("--text-color", t.text);
+  });
+
+  const savedTheme = localStorage.getItem("theme") || "light";
+  const body = document.body;
+  function setTheme(mode) {
+    if (mode === "dark") {
+      body.classList.add("dark");
+      $("#themeToggle").text("🌞");
+    } else {
+      body.classList.remove("dark");
+      $("#themeToggle").text("🌙");
+    }
+    localStorage.setItem("theme", mode);
+  }
+  $("#themeToggle").click(() => setTheme(body.classList.contains("dark") ? "light" : "dark"));
+  setTheme(savedTheme);
+
+  buildGallery();
+  setLanguage("en");
+});
+</script>
+</body>
+</html>
